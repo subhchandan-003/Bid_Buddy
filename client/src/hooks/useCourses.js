@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import API from '../lib/api';
+import coursesData from '../data/courses.json';
 
 export function useCourses() {
   const [allCourses, setAllCourses] = useState([]);
@@ -16,10 +16,8 @@ export function useCourses() {
   const isFirstRender = useRef(true);
 
   useEffect(() => {
-    fetch(`${API}/api/courses`)
-      .then(r => { if (!r.ok) throw new Error('Failed to fetch'); return r.json(); })
-      .then(data => { setAllCourses(data); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
+    setAllCourses(coursesData);
+    setLoading(false);
   }, []);
 
   const areas    = useMemo(() => [...new Set(allCourses.map(c => c.area))].sort(), [allCourses]);

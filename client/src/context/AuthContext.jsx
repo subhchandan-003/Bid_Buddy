@@ -1,5 +1,9 @@
 import { createContext, useContext, useState } from 'react';
-import API from '../lib/api';
+
+const USERS = [
+  { id: 1, username: 'admin',   password: 'admin123',   role: 'admin',   name: 'Admin' },
+  { id: 2, username: 'student', password: 'student123', role: 'student', name: 'Student' },
+];
 
 const AuthContext = createContext(null);
 
@@ -10,19 +14,12 @@ export function AuthProvider({ children }) {
   });
 
   const login = async (username, password) => {
-    const res = await fetch(`${API}/api/auth/login`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ username, password }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Login failed');
-    }
-    const data = await res.json();
-    setUser(data);
-    localStorage.setItem('elective_user', JSON.stringify(data));
-    return data;
+    const match = USERS.find(u => u.username === username && u.password === password);
+    if (!match) throw new Error('Invalid username or password');
+    const { password: _pw, ...safeUser } = match;
+    setUser(safeUser);
+    localStorage.setItem('elective_user', JSON.stringify(safeUser));
+    return safeUser;
   };
 
   const logout = () => {

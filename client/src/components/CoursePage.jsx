@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import StarRating from './StarRating';
 import Header from './Header';
 import courseDetails from '../data/courseDetails.js';
-import API from '../lib/api';
 import '../styles/CoursePage.css';
+
+const reviewsKey = (id) => `elective_reviews_${id}`;
 
 const AREA_COLORS = {
   Finance: '#3b82f6', GMPP: '#8b5cf6', ISM: '#14b8a6',
@@ -49,7 +50,6 @@ export default function CoursePage({
   // ── Admin edit state ──────────────────────────────────────────────────────
   const [editing,   setEditing]   = useState(false);
   const [editDraft, setEditDraft] = useState({});
-  const [saving,    setSaving]    = useState(false);
   const [saveErr,   setSaveErr]   = useState('');
 
   const startEdit = () => {
@@ -65,20 +65,11 @@ export default function CoursePage({
     setEditing(true);
   };
 
-  const saveEdit = async () => {
-    setSaving(true); setSaveErr('');
-    try {
-      const res = await fetch(`${API}/api/courses/${course.id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editDraft),
-      });
-      if (!res.ok) throw new Error('Save failed');
-      const updated = await res.json();
-      setCourse(updated);
-      setEditing(false);
-      onCourseUpdated && onCourseUpdated(updated);
-    } catch (e) { setSaveErr(e.message); }
-    finally { setSaving(false); }
+  const saveEdit = () => {
+    const updated = { ...course, ...editDraft };
+    setCourse(updated);
+    setEditing(false);
+    onCourseUpdated && onCourseUpdated(updated);
   };
 
   // ── Reviews ───────────────────────────────────────────────────────────────
@@ -93,36 +84,44 @@ export default function CoursePage({
   const fetchReviews = useCallback(() => {
     if (!id) return;
     setRevLoad(true);
-    fetch(`${API}/api/reviews/${id}`)
-      .then(r => r.json())
-      .then(d => setReviews(Array.isArray(d) ? d : []))
-      .finally(() => setRevLoad(false));
+    try {
+      const stored = JSON.parse(localStorage.getItem(reviewsKey(id))) || [];
+      setReviews(Array.isArray(stored) ? stored : []);
+    } catch {
+      setReviews([]);
+    }
+    setRevLoad(false);
   }, [id]);
 
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
 
-  const submitReview = async (e) => {
+  const submitReview = (e) => {
     e.preventDefault();
     if (!cRating && !pRating && !comment.trim()) {
       setFormErr('Please provide at least a rating or a comment.');
       return;
     }
     setFormErr(''); setSubmitting(true);
-    try {
-      const res = await fetch(`${API}/api/reviews/${id}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: user.username, name: user.name, courseRating: cRating, profRating: pRating, comment }),
-      });
-      if (!res.ok) throw new Error('Submit failed');
-      setCRating(0); setPRating(0); setComment('');
-      fetchReviews();
-    } catch (e) { setFormErr(e.message); }
-    finally { setSubmitting(false); }
+    const newReview = {
+      id: Date.now(),
+      username: user.username,
+      name: user.name,
+      courseRating: cRating,
+      profRating: pRating,
+      comment,
+      timestamp: new Date().toISOString(),
+    };
+    const updated = [...reviews, newReview];
+    localStorage.setItem(reviewsKey(id), JSON.stringify(updated));
+    setReviews(updated);
+    setCRating(0); setPRating(0); setComment('');
+    setSubmitting(false);
   };
 
-  const deleteReview = async (reviewId) => {
-    await fetch(`${API}/api/reviews/${id}/${reviewId}`, { method: 'DELETE' });
-    setReviews(prev => prev.filter(r => r.id !== reviewId));
+  const deleteReview = (reviewId) => {
+    const updated = reviews.filter(r => r.id !== reviewId);
+    localStorage.setItem(reviewsKey(id), JSON.stringify(updated));
+    setReviews(updated);
   };
 
   // ── Not found ─────────────────────────────────────────────────────────────
