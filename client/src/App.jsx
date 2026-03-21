@@ -152,44 +152,49 @@ function AppInner({ logout, user }) {
     <>
       <Header total={allCourses.length} filtered={filtered.length} user={user} onLogout={logout} />
 
-      <div className="tab-bar">
-        <div className="tab-bar-inner">
-          <button
-            className={`tab-btn ${activeTab === 'browse' ? 'active' : ''}`}
-            onClick={() => setActiveTab('browse')}
-          >
-            Browse Courses
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'basket' ? 'active' : ''}`}
-            onClick={() => setActiveTab('basket')}
-          >
-            My Planner
-            {basket.size > 0 && <span className="tab-badge">{basket.size}</span>}
-          </button>
+      <div className="sticky-ui-stack">
+        <div className="tab-bar">
+          <div className="tab-bar-inner">
+            <button
+              className={`tab-btn ${activeTab === 'browse' ? 'active' : ''}`}
+              onClick={() => setActiveTab('browse')}
+            >
+              Browse Courses
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'basket' ? 'active' : ''}`}
+              onClick={() => setActiveTab('basket')}
+            >
+              My Planner
+              {basket.size > 0 && <span className="tab-badge">{basket.size}</span>}
+            </button>
+          </div>
         </div>
+
+        {activeTab === 'browse' && (
+          <>
+            <FilterBar
+              search={search} setSearch={setSearch}
+              areas={areas} selectedAreas={selectedAreas} toggleArea={toggleArea}
+              selectedCredit={selectedCredit} setSelectedCredit={setSelectedCredit}
+              faculties={faculties} selectedFaculty={selectedFaculty} setSelectedFaculty={setSelectedFaculty}
+              terms={terms} selectedTerm={selectedTerm} setSelectedTerm={setSelectedTerm}
+              clearAll={clearAll} hasFilters={hasFilters}
+            />
+            <CreditTracker basketCourses={basketCourses} />
+          </>
+        )}
       </div>
 
       {activeTab === 'browse' ? (
-        <>
-          <FilterBar
-            search={search} setSearch={setSearch}
-            areas={areas} selectedAreas={selectedAreas} toggleArea={toggleArea}
-            selectedCredit={selectedCredit} setSelectedCredit={setSelectedCredit}
-            faculties={faculties} selectedFaculty={selectedFaculty} setSelectedFaculty={setSelectedFaculty}
-            terms={terms} selectedTerm={selectedTerm} setSelectedTerm={setSelectedTerm}
-            clearAll={clearAll} hasFilters={hasFilters}
-          />
-          <CreditTracker basketCourses={basketCourses} />
-          <CourseGrid
-            courses={displayCourses}
-            total={allCourses.length}
-            filterVersion={filterVersion}
-            basket={basket}
-            toggleBasket={toggleBasket}
-            onExpand={course => navigate(`/course/${course.id}`)}
-          />
-        </>
+        <CourseGrid
+          courses={displayCourses}
+          total={allCourses.length}
+          filterVersion={filterVersion}
+          basket={basket}
+          toggleBasket={toggleBasket}
+          onExpand={course => navigate(`/course/${course.id}`)}
+        />
       ) : (
         <BasketView
           basketCourses={basketCourses}
