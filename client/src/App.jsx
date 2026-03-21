@@ -172,18 +172,16 @@ function AppInner({ logout, user }) {
         </div>
 
         {activeTab === 'browse' && (
-          <>
-            <FilterBar
-              search={search} setSearch={setSearch}
-              areas={areas} selectedAreas={selectedAreas} toggleArea={toggleArea}
-              selectedCredit={selectedCredit} setSelectedCredit={setSelectedCredit}
-              faculties={faculties} selectedFaculty={selectedFaculty} setSelectedFaculty={setSelectedFaculty}
-              terms={terms} selectedTerm={selectedTerm} setSelectedTerm={setSelectedTerm}
-              clearAll={clearAll} hasFilters={hasFilters}
-            />
-            <CreditTracker basketCourses={basketCourses} />
-          </>
+          <FilterBar
+            search={search} setSearch={setSearch}
+            areas={areas} selectedAreas={selectedAreas} toggleArea={toggleArea}
+            selectedCredit={selectedCredit} setSelectedCredit={setSelectedCredit}
+            faculties={faculties} selectedFaculty={selectedFaculty} setSelectedFaculty={setSelectedFaculty}
+            terms={terms} selectedTerm={selectedTerm} setSelectedTerm={setSelectedTerm}
+            clearAll={clearAll} hasFilters={hasFilters}
+          />
         )}
+        <CreditTracker basketCourses={basketCourses} />
       </div>
 
       {activeTab === 'browse' ? (
