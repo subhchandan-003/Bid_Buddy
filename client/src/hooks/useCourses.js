@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import staticCourses from '../data/courses.json';
 
 export function useCourses() {
   const [allCourses, setAllCourses] = useState([]);
@@ -14,9 +15,10 @@ export function useCourses() {
   const filterVersion = useRef(0);
   const isFirstRender = useRef(true);
 
-  // Fetch all courses from the API on mount
+  // Try the live API first; fall back to the bundled static JSON
   useEffect(() => {
-    fetch('/api/courses')
+    const apiBase = import.meta.env.VITE_API_URL ?? '';
+    fetch(`${apiBase}/api/courses`)
       .then(r => {
         if (!r.ok) throw new Error(`Server error ${r.status}`);
         return r.json();
@@ -25,8 +27,9 @@ export function useCourses() {
         setAllCourses(data);
         setLoading(false);
       })
-      .catch(err => {
-        setError(err.message);
+      .catch(() => {
+        // No backend available (e.g. static GitHub Pages deploy) — use local data
+        setAllCourses(staticCourses);
         setLoading(false);
       });
   }, []);

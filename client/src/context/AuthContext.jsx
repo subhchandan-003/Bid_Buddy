@@ -1,6 +1,12 @@
 import { createContext, useContext, useState } from 'react';
 import { apiFetch } from '../lib/api';
 
+// Fallback credentials for static / offline deployments (no backend)
+const STATIC_USERS = [
+  { username: 'admin',   password: 'admin123',   role: 'admin',   name: 'Admin' },
+  { username: 'student', password: 'student123', role: 'student', name: 'Student' },
+];
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -10,17 +16,27 @@ export function AuthProvider({ children }) {
   });
 
   const login = async (username, password) => {
-    const data = await apiFetch('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username: username.trim(), password }),
-    });
-
-    // Store JWT separately; store safe user profile for UI
-    localStorage.setItem('elective_token', data.token);
-    const { token: _t, ...safeUser } = data;
-    setUser(safeUser);
-    localStorage.setItem('elective_user', JSON.stringify(safeUser));
-    return safeUser;
+    try {
+      const data = await apiFetch('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+      localStorage.setItem('elective_token', data.token);
+      const { token: _t, ...safeUser } = data;
+      setUser(safeUser);
+      localStorage.setItem('elective_user', JSON.stringify(safeUser));
+      return safeUser;
+    } catch {
+      // No backend available — validate against static credentials
+      const match = STATIC_USERS.find(
+        u => u.username === username.trim() && u.password === password
+      );
+      if (!match) throw new Error('Invalid username or password');
+      const safeUser = { username: match.username, role: match.role, name: match.name };
+      setUser(safeUser);
+      localStorage.setItem('elective_user', JSON.stringify(safeUser));
+      return safeUser;
+    }
   };
 
   const logout = () => {
