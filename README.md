@@ -15,7 +15,7 @@ npm install --prefix client
 npm run dev
 ```
 
-Open **http://localhost:5173** in your browser.
+Open **http://localhost:6173** in your browser.
 
 ## Features
 - 🔍 Live search by course name, faculty, or area
@@ -26,6 +26,6 @@ Open **http://localhost:5173** in your browser.
 - ✨ Glassmorphism UI with deep navy background and gold accents
 
 ## Tech Stack
-- **Backend**: Node.js + Express (port 5000)
-- **Frontend**: React 19 + Vite (port 5173)
+- **Backend**: Node.js + Express (port 6000)
+- **Frontend**: React 19 + Vite (port 6173)
 - **Data**: `server/data/courses.json` — 91 courses across 8 areas

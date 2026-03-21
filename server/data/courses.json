@@ -84,7 +84,7 @@
     "area": "Finance",
     "term": "Term IV",
     "course": "Options, Futures and Derivatives",
-    "faculty": "Prof. B B Chakrabarti (Tentative)",
+    "faculty": "Prof. Udayan Sharma",
     "credits": 3
   },
   {
@@ -410,7 +410,7 @@
   {
     "id": 52,
     "area": "Operations",
-    "term": "Term IV",
+    "term": "Term VI",
     "course": "Agile Management with Scrum",
     "faculty": "Prof. Shweta Singh",
     "credits": 1.5
@@ -540,7 +540,7 @@
     "area": "Strategy",
     "term": "Term V",
     "course": "Business Models & Plans",
-    "faculty": "Dr. Sanyka Banerjee",
+    "faculty": "Dr. Sanyka Banerjee & Prof. Aqueeb Sohail Shaik",
     "credits": 3
   },
   {
@@ -626,7 +626,7 @@
   {
     "id": 79,
     "area": "Strategy",
-    "term": "Term IV",
+    "term": "Term V",
     "course": "Managing a Consulting Business: A Practitioner's Perspective",
     "faculty": "Prof. Sandeep Kumar Hota",
     "credits": 1.5
@@ -658,7 +658,7 @@
   {
     "id": 83,
     "area": "Strategy",
-    "term": "Term IV",
+    "term": "Term V",
     "course": "Strategic Leadership, Thinking & Decision Making",
     "faculty": "Prof. Diptiprakash Pradhan",
     "credits": 3
@@ -672,14 +672,6 @@
     "credits": 1.5
   },
   {
-    "id": 85,
-    "area": "Strategy",
-    "term": "Term VI",
-    "course": "Technology & Innovation Management",
-    "faculty": "Prof. Aqueeb Sohail Shaik",
-    "credits": 1.5
-  },
-  {
     "id": 86,
     "area": "Strategy",
     "term": "Term IV",
@@ -690,7 +682,7 @@
   {
     "id": 87,
     "area": "GMPPE",
-    "term": "Term IV",
+    "term": "Term V",
     "course": "Applied Econometrics for Manager",
     "faculty": "Prof. Hemachandra Padhan",
     "credits": 3
@@ -698,7 +690,7 @@
   {
     "id": 88,
     "area": "GMPPE",
-    "term": "Term IV",
+    "term": "Term VI",
     "course": "Energy Markets and Pricing Strategies for Business",
     "faculty": "Prof. Hemachandra Padhan",
     "credits": 3

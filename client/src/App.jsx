@@ -9,6 +9,7 @@ import CourseGrid from './components/CourseGrid';
 import BasketView from './components/BasketView';
 import CoursePage from './components/CoursePage';
 import LoginPage from './components/LoginPage';
+import CreditTracker from './components/CreditTracker';
 
 const TERM_RULES = {
   'Term IV':  { min: 18, max: 21, label: 'Term 4' },
@@ -179,6 +180,7 @@ function AppInner({ logout, user }) {
             terms={terms} selectedTerm={selectedTerm} setSelectedTerm={setSelectedTerm}
             clearAll={clearAll} hasFilters={hasFilters}
           />
+          <CreditTracker basketCourses={basketCourses} />
           <CourseGrid
             courses={displayCourses}
             total={allCourses.length}

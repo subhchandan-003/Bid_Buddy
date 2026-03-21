@@ -3,9 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import StarRating from './StarRating';
 import Header from './Header';
 import courseDetails from '../data/courseDetails.js';
+import { apiFetch } from '../lib/api';
 import '../styles/CoursePage.css';
-
-const reviewsKey = (id) => `elective_reviews_${id}`;
 
 const AREA_COLORS = {
   Finance: '#3b82f6', GMPP: '#8b5cf6', ISM: '#14b8a6',
@@ -50,6 +49,7 @@ export default function CoursePage({
   // ── Admin edit state ──────────────────────────────────────────────────────
   const [editing,   setEditing]   = useState(false);
   const [editDraft, setEditDraft] = useState({});
+  const [saving,    setSaving]    = useState(false);
   const [saveErr,   setSaveErr]   = useState('');
 
   const startEdit = () => {
@@ -65,11 +65,22 @@ export default function CoursePage({
     setEditing(true);
   };
 
-  const saveEdit = () => {
-    const updated = { ...course, ...editDraft };
-    setCourse(updated);
-    setEditing(false);
-    onCourseUpdated && onCourseUpdated(updated);
+  const saveEdit = async () => {
+    setSaving(true);
+    setSaveErr('');
+    try {
+      const updated = await apiFetch(`/api/courses/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(editDraft),
+      });
+      setCourse(updated);
+      setEditing(false);
+      onCourseUpdated && onCourseUpdated(updated);
+    } catch (err) {
+      setSaveErr(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Reviews ───────────────────────────────────────────────────────────────
@@ -84,44 +95,49 @@ export default function CoursePage({
   const fetchReviews = useCallback(() => {
     if (!id) return;
     setRevLoad(true);
-    try {
-      const stored = JSON.parse(localStorage.getItem(reviewsKey(id))) || [];
-      setReviews(Array.isArray(stored) ? stored : []);
-    } catch {
-      setReviews([]);
-    }
-    setRevLoad(false);
+    fetch(`/api/reviews/${id}`)
+      .then(r => r.json())
+      .then(data => {
+        setReviews(Array.isArray(data) ? data : []);
+        setRevLoad(false);
+      })
+      .catch(() => {
+        setReviews([]);
+        setRevLoad(false);
+      });
   }, [id]);
 
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
 
-  const submitReview = (e) => {
+  const submitReview = async (e) => {
     e.preventDefault();
     if (!cRating && !pRating && !comment.trim()) {
       setFormErr('Please provide at least a rating or a comment.');
       return;
     }
-    setFormErr(''); setSubmitting(true);
-    const newReview = {
-      id: Date.now(),
-      username: user.username,
-      name: user.name,
-      courseRating: cRating,
-      profRating: pRating,
-      comment,
-      timestamp: new Date().toISOString(),
-    };
-    const updated = [...reviews, newReview];
-    localStorage.setItem(reviewsKey(id), JSON.stringify(updated));
-    setReviews(updated);
-    setCRating(0); setPRating(0); setComment('');
-    setSubmitting(false);
+    setFormErr('');
+    setSubmitting(true);
+    try {
+      await apiFetch(`/api/reviews/${id}`, {
+        method: 'POST',
+        body: JSON.stringify({ courseRating: cRating, profRating: pRating, comment }),
+      });
+      setCRating(0); setPRating(0); setComment('');
+      fetchReviews();
+    } catch (err) {
+      setFormErr(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const deleteReview = (reviewId) => {
-    const updated = reviews.filter(r => r.id !== reviewId);
-    localStorage.setItem(reviewsKey(id), JSON.stringify(updated));
-    setReviews(updated);
+  const deleteReview = async (reviewId) => {
+    try {
+      await apiFetch(`/api/reviews/${id}/${reviewId}`, { method: 'DELETE' });
+      fetchReviews();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   // ── Not found ─────────────────────────────────────────────────────────────
@@ -247,7 +263,6 @@ export default function CoursePage({
         {detail && (
           <div className="cp-detail-grid">
 
-            {/* About This Course — full width */}
             {detail.intro && (
               <div className="cp-detail-card cp-detail-full">
                 <h3 className="cp-detail-heading">About This Course</h3>
@@ -255,7 +270,6 @@ export default function CoursePage({
               </div>
             )}
 
-            {/* Course Curriculum — full width */}
             {detail.outline?.length > 0 && (
               <div className="cp-detail-card cp-detail-full cp-curriculum-card">
                 <h3 className="cp-detail-heading">Course Curriculum</h3>
@@ -275,7 +289,6 @@ export default function CoursePage({
               </div>
             )}
 
-            {/* Key Takeaways — half width */}
             {detail.keyTakeaways?.length > 0 && (
               <div className="cp-detail-card">
                 <h3 className="cp-detail-heading">Key Takeaways</h3>
@@ -287,7 +300,6 @@ export default function CoursePage({
               </div>
             )}
 
-            {/* Prerequisites — half width */}
             <div className="cp-detail-card cp-prereq-card">
               <h3 className="cp-detail-heading">Prerequisites</h3>
               <p className="cp-detail-text cp-prereq-text">{detail.prerequisites || 'None mentioned'}</p>
@@ -301,7 +313,6 @@ export default function CoursePage({
           {/* ── Left: Ratings aggregate + Review form ── */}
           <div className="cp-left">
 
-            {/* Aggregate */}
             {reviews.length > 0 && (
               <div className="cp-agg-card">
                 <h2 className="cp-section-title">Overall Ratings</h2>
@@ -326,7 +337,6 @@ export default function CoursePage({
               </div>
             )}
 
-            {/* Review form — students only */}
             {!isAdmin && (
               <div className="cp-card">
                 <h2 className="cp-section-title">Rate This Course</h2>

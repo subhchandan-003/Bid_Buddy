@@ -1,68 +1,116 @@
 const express = require('express');
-const router  = express.Router();
-const fs      = require('fs');
-const path    = require('path');
+const Course  = require('../models/Course');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
-const COURSES_FILE = path.join(__dirname, '../data/courses.json');
-let courses = require('../data/courses.json');
-
-function saveCourses() {
-  fs.writeFileSync(COURSES_FILE, JSON.stringify(courses, null, 2));
-}
+const router = express.Router();
 
 // GET /api/courses
-// Query params: area, credits, faculty, search
-router.get('/', (req, res) => {
-  let result = [...courses];
-  const { area, credits, faculty, search } = req.query;
+// Query: area (comma-sep), credits, faculty, search, term
+router.get('/', async (req, res) => {
+  try {
+    const { area, credits, faculty, search, term } = req.query;
+    const filter = {};
 
-  if (area) {
-    const areas = area.split(',').map(a => a.trim().toLowerCase());
-    result = result.filter(c => areas.includes(c.area.toLowerCase()));
+    if (area) {
+      const areas = area.split(',').map(a => a.trim());
+      filter.area = { $in: areas };
+    }
+    if (credits) {
+      filter.credits = parseFloat(credits);
+    }
+    if (faculty) {
+      filter.faculty = { $regex: faculty, $options: 'i' };
+    }
+    if (term) {
+      filter.term = term;
+    }
+    if (search) {
+      filter.$or = [
+        { course:  { $regex: search, $options: 'i' } },
+        { faculty: { $regex: search, $options: 'i' } },
+        { area:    { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const courses = await Course.find(filter).sort({ courseId: 1 });
+    res.json(courses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+});
 
-  if (credits) {
-    const val = parseFloat(credits);
-    result = result.filter(c => c.credits === val);
+// GET /api/courses/meta — unique areas, faculties, creditValues
+router.get('/meta', async (req, res) => {
+  try {
+    const [areas, faculties, creditValues] = await Promise.all([
+      Course.distinct('area'),
+      Course.distinct('faculty'),
+      Course.distinct('credits'),
+    ]);
+    res.json({
+      areas:        areas.sort(),
+      faculties:    faculties.sort(),
+      creditValues: creditValues.filter(Boolean).sort((a, b) => a - b),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+});
 
-  if (faculty) {
-    const q = faculty.toLowerCase();
-    result = result.filter(c => c.faculty.toLowerCase().includes(q));
+// GET /api/courses/:id — single course by numeric courseId
+router.get('/:id', async (req, res) => {
+  try {
+    const course = await Course.findOne({ courseId: parseInt(req.params.id, 10) });
+    if (!course) return res.status(404).json({ error: 'Course not found' });
+    res.json(course);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+});
 
-  if (search) {
-    const q = search.toLowerCase();
-    result = result.filter(c =>
-      c.course.toLowerCase().includes(q) ||
-      c.faculty.toLowerCase().includes(q) ||
-      c.area.toLowerCase().includes(q)
+// POST /api/courses — create a new course (admin only)
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { courseId, area, term, course, faculty, credits, description } = req.body;
+    if (!courseId || !area || !term || !course || !faculty)
+      return res.status(400).json({ error: 'courseId, area, term, course and faculty are required' });
+
+    const created = await Course.create({ courseId, area, term, course, faculty, credits, description });
+    res.status(201).json(created);
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ error: 'A course with that ID already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/courses/:id — update a course (admin only)
+router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const allowed = ['course', 'faculty', 'area', 'term', 'credits', 'description'];
+    const update  = {};
+    allowed.forEach(f => { if (req.body[f] !== undefined) update[f] = req.body[f]; });
+
+    const updated = await Course.findOneAndUpdate(
+      { courseId: parseInt(req.params.id, 10) },
+      { $set: update },
+      { new: true, runValidators: true }
     );
+    if (!updated) return res.status(404).json({ error: 'Course not found' });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  res.json(result);
 });
 
-// GET /api/courses/meta — returns unique areas, faculties, credit values
-router.get('/meta', (req, res) => {
-  const areas = [...new Set(courses.map(c => c.area))].sort();
-  const faculties = [...new Set(courses.map(c => c.faculty))].sort();
-  const creditValues = [...new Set(courses.map(c => c.credits).filter(Boolean))].sort((a, b) => a - b);
-  res.json({ areas, faculties, creditValues });
-});
-
-// PUT /api/courses/:id  (admin: update course details)
-router.put('/:id', (req, res) => {
-  const id  = parseInt(req.params.id, 10);
-  const idx = courses.findIndex(c => c.id === id);
-  if (idx === -1) return res.status(404).json({ error: 'Course not found' });
-
-  const allowed = ['course', 'faculty', 'area', 'term', 'credits', 'description'];
-  allowed.forEach(field => {
-    if (req.body[field] !== undefined) courses[idx][field] = req.body[field];
-  });
-  saveCourses();
-  res.json(courses[idx]);
+// DELETE /api/courses/:id — delete a course (admin only)
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const deleted = await Course.findOneAndDelete({ courseId: parseInt(req.params.id, 10) });
+    if (!deleted) return res.status(404).json({ error: 'Course not found' });
+    res.json({ ok: true, deleted: deleted.courseId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

@@ -1,9 +1,5 @@
 import { createContext, useContext, useState } from 'react';
-
-const USERS = [
-  { id: 1, username: 'admin',   password: 'admin123',   role: 'admin',   name: 'Admin' },
-  { id: 2, username: 'student', password: 'student123', role: 'student', name: 'Student' },
-];
+import { apiFetch } from '../lib/api';
 
 const AuthContext = createContext(null);
 
@@ -14,9 +10,14 @@ export function AuthProvider({ children }) {
   });
 
   const login = async (username, password) => {
-    const match = USERS.find(u => u.username === username && u.password === password);
-    if (!match) throw new Error('Invalid username or password');
-    const { password: _pw, ...safeUser } = match;
+    const data = await apiFetch('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username: username.trim(), password }),
+    });
+
+    // Store JWT separately; store safe user profile for UI
+    localStorage.setItem('elective_token', data.token);
+    const { token: _t, ...safeUser } = data;
     setUser(safeUser);
     localStorage.setItem('elective_user', JSON.stringify(safeUser));
     return safeUser;
@@ -25,6 +26,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('elective_user');
+    localStorage.removeItem('elective_token');
   };
 
   return (

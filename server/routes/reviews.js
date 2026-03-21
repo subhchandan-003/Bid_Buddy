@@ -1,55 +1,81 @@
 const express = require('express');
-const router  = express.Router();
-const fs      = require('fs');
-const path    = require('path');
+const Review  = require('../models/Review');
+const Course  = require('../models/Course');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
-const REVIEWS_FILE = path.join(__dirname, '../data/reviews.json');
+const router = express.Router();
 
-function readReviews() {
-  try { return JSON.parse(fs.readFileSync(REVIEWS_FILE, 'utf8')); }
-  catch { return {}; }
-}
-function writeReviews(data) {
-  fs.writeFileSync(REVIEWS_FILE, JSON.stringify(data, null, 2));
-}
+// GET /api/reviews/:courseId — get all reviews for a course (numeric courseId)
+router.get('/:courseId', async (req, res) => {
+  try {
+    const course = await Course.findOne({ courseId: parseInt(req.params.courseId, 10) });
+    if (!course) return res.status(404).json({ error: 'Course not found' });
 
-// GET /api/reviews/:courseId
-router.get('/:courseId', (req, res) => {
-  const data = readReviews();
-  res.json(data[req.params.courseId] || []);
+    const reviews = await Review.find({ course: course._id }).sort({ timestamp: -1 });
+    res.json(reviews);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// POST /api/reviews/:courseId
-router.post('/:courseId', (req, res) => {
-  const { username, name, courseRating, profRating, comment } = req.body;
-  if (!username) return res.status(400).json({ error: 'username required' });
+// POST /api/reviews/:courseId — submit a review (auth required)
+router.post('/:courseId', requireAuth, async (req, res) => {
+  try {
+    const course = await Course.findOne({ courseId: parseInt(req.params.courseId, 10) });
+    if (!course) return res.status(404).json({ error: 'Course not found' });
 
-  const data    = readReviews();
-  const key     = req.params.courseId;
-  if (!data[key]) data[key] = [];
-
-  const review = {
-    id:           Date.now(),
-    username,
-    name:         name || username,
-    courseRating: Number(courseRating) || 0,
-    profRating:   Number(profRating)   || 0,
-    comment:      (comment || '').trim(),
-    timestamp:    new Date().toISOString(),
-  };
-  data[key].unshift(review);
-  writeReviews(data);
-  res.status(201).json(review);
+    const { courseRating, profRating, comment } = req.body;
+    const review = await Review.create({
+      course:       course._id,
+      user:         req.user.id,
+      username:     req.user.username,
+      name:         req.user.name,
+      courseRating: Number(courseRating) || 0,
+      profRating:   Number(profRating)   || 0,
+      comment:      (comment || '').trim(),
+      timestamp:    new Date(),
+    });
+    res.status(201).json(review);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// DELETE /api/reviews/:courseId/:reviewId  (admin only — frontend enforces role)
-router.delete('/:courseId/:reviewId', (req, res) => {
-  const data = readReviews();
-  const key  = req.params.courseId;
-  if (!data[key]) return res.status(404).json({ error: 'Not found' });
-  data[key] = data[key].filter(r => String(r.id) !== String(req.params.reviewId));
-  writeReviews(data);
-  res.json({ ok: true });
+// PUT /api/reviews/:courseId/:reviewId — edit own review (auth required)
+router.put('/:courseId/:reviewId', requireAuth, async (req, res) => {
+  try {
+    const review = await Review.findById(req.params.reviewId);
+    if (!review) return res.status(404).json({ error: 'Review not found' });
+    if (String(review.user) !== String(req.user.id))
+      return res.status(403).json({ error: 'You can only edit your own reviews' });
+
+    const { courseRating, profRating, comment } = req.body;
+    if (courseRating !== undefined) review.courseRating = Number(courseRating);
+    if (profRating   !== undefined) review.profRating   = Number(profRating);
+    if (comment      !== undefined) review.comment      = comment.trim();
+    await review.save();
+    res.json(review);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/reviews/:courseId/:reviewId — admin deletes any, student deletes own
+router.delete('/:courseId/:reviewId', requireAuth, async (req, res) => {
+  try {
+    const review = await Review.findById(req.params.reviewId);
+    if (!review) return res.status(404).json({ error: 'Review not found' });
+
+    const isAdmin = req.user.role === 'admin';
+    const isOwner = String(review.user) === String(req.user.id);
+    if (!isAdmin && !isOwner)
+      return res.status(403).json({ error: 'Not authorised to delete this review' });
+
+    await review.deleteOne();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
